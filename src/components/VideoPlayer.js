@@ -515,7 +515,7 @@ const VideoPlayer = ({ movie, isTV = false, season = 1, episode = 1, onClose, on
         cleanup();
       }
     };
-  }, [movie, isTV, currentSeason, currentEpisode]);
+  }, [movie, isTV, currentSeason, currentEpisode, dispatch]);
 
   // Handle mouse movement for controls (simplified)
   useEffect(() => {
