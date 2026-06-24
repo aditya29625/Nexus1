@@ -18,32 +18,11 @@ export const detectDevice = () => {
 
 // Network connectivity checker
 export const checkNetworkConnectivity = async () => {
-  try {
-    // Test with a small, fast endpoint
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    const response = await fetch('https://httpbin.org/status/200', {
-      method: 'HEAD',
-      signal: controller.signal,
-      cache: 'no-cache'
-    });
-    
-    clearTimeout(timeoutId);
-    
-    return {
-      isOnline: response.ok,
-      latency: performance.now(),
-      connectionQuality: navigator.connection?.effectiveType || 'unknown'
-    };
-  } catch (error) {
-    return {
-      isOnline: navigator.onLine,
-      latency: Infinity,
-      connectionQuality: 'poor',
-      error: error.message
-    };
-  }
+  return {
+    isOnline: navigator.onLine,
+    latency: 0,
+    connectionQuality: navigator.connection?.effectiveType || 'unknown'
+  };
 };
 
 // Enhanced fetch with mobile-specific optimizations
@@ -217,26 +196,24 @@ export const mobileApiHandler = {
       
       return data;
     } catch (error) {
-      // Return mock data as fallback for mobile
-      if (device.isMobile) {
-        if (url.includes('/movie/') || url.includes('/trending/movie')) {
-          return {
-            results: generateMockMovieData(20),
-            total_results: 20,
-            total_pages: 1,
-            page: 1,
-            isMockData: true
-          };
-        }
-        if (url.includes('/tv/') || url.includes('/trending/tv')) {
-          return {
-            results: generateMockTVData(20),
-            total_results: 20,
-            total_pages: 1,
-            page: 1,
-            isMockData: true
-          };
-        }
+      // Return mock data as fallback for all devices when API fails
+      if (url.includes('/movie/') || url.includes('/trending/movie') || url.includes('/movie')) {
+        return {
+          results: generateMockMovieData(20),
+          total_results: 20,
+          total_pages: 1,
+          page: 1,
+          isMockData: true
+        };
+      }
+      if (url.includes('/tv/') || url.includes('/trending/tv') || url.includes('/tv')) {
+        return {
+          results: generateMockTVData(20),
+          total_results: 20,
+          total_pages: 1,
+          page: 1,
+          isMockData: true
+        };
       }
       
       throw error;

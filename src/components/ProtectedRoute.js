@@ -15,7 +15,12 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
   
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    // Support demo mode when Firebase is not configured
+    const authStateHandler = auth._isDemo && auth._mockOnAuthStateChanged
+      ? auth._mockOnAuthStateChanged
+      : (callback) => onAuthStateChanged(auth, callback);
+
+    const unsubscribe = authStateHandler((firebaseUser) => {
       // Firebase has determined the auth state
       setAuthLoading(false);
     });

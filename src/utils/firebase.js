@@ -1,12 +1,9 @@
 // Firebase app initialization - Firebase setup karne ke liye
-import { initializeApp } from "firebase/app";
-// Analytics disabled hai kyunki Google Tag Manager ke saath conflict ho raha tha
-// import { getAnalytics, isSupported } from "firebase/analytics";
+import { initializeApp, getApps } from "firebase/app";
 // Firebase authentication - login/signup features ke liye
 import { getAuth } from "firebase/auth";
 
 // Firebase configuration - app ke credentials (.env file se aa rahe security ke liye)
-// Yeh settings batate hain ki Firebase project se kaise connect karna hai
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -17,19 +14,39 @@ const firebaseConfig = {
   measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Analytics disabled to prevent Google Tag Manager conflicts
+export const analytics = null;
 
-// Initialize Analytics with error handling and Google Tag Manager compatibility
-let analytics = null;
+let auth;
 
-// Analytics disabled to prevent Google Tag Manager conflicts and related errors
-// Firebase Analytics was causing googletag.destroySlots errors and ERR_UNSAFE_REDIRECT issues
 try {
-  console.log('[NEXUS] Firebase Analytics disabled to prevent GTM conflicts');
+  // Only initialize if API key is present
+  if (!firebaseConfig.apiKey) {
+    throw new Error('Firebase API key not set. Running in demo mode.');
+  }
+  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  auth = getAuth(app);
+  console.log('[NEXUS] Firebase initialized successfully');
 } catch (error) {
-  console.log('[NEXUS] Firebase Analytics error caught:', error);
+  console.warn('[NEXUS] Firebase not configured - running in demo mode:', error.message);
+  // Minimal mock auth object - onAuthStateChanged is patched separately below
+  auth = {
+    currentUser: null,
+    app: { name: 'demo' },
+    _isDemo: true,
+  };
 }
 
-export const auth = getAuth(app);
-export { analytics };
+// If running in demo mode, patch onAuthStateChanged to always return unauthenticated
+// This prevents the app from crashing when Firebase is not configured
+if (auth._isDemo) {
+  // We need to intercept the firebase/auth onAuthStateChanged calls
+  // The cleanest way is to store the mock on auth so ProtectedRoute and Body can detect it
+  auth._mockOnAuthStateChanged = (callback) => {
+    // Immediately invoke callback with null (unauthenticated)
+    setTimeout(() => callback(null), 0);
+    return () => {}; // unsubscribe no-op
+  };
+}
+
+export { auth };

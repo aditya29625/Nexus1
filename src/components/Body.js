@@ -368,7 +368,12 @@ const Body = () => {
 
   // Authentication state listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    // Support demo mode when Firebase is not configured
+    const authStateHandler = auth._isDemo && auth._mockOnAuthStateChanged
+      ? auth._mockOnAuthStateChanged
+      : (callback) => onAuthStateChanged(auth, callback);
+
+    const unsubscribe = authStateHandler((user) => {
       if (user) {
         const { uid, email, displayName, photoURL } = user;
         dispatch(addUser({ 

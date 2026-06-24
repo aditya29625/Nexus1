@@ -1,7 +1,6 @@
 // Enhanced TMDB API integration for The Nexus with mobile optimization
 import {
   mobileApiHandler,
-  detectDevice,
   generateMockMovieData,
   generateMockTVData,
   initializeMobileOptimizations
@@ -24,47 +23,154 @@ const fetchFromTMDB = async (endpoint, page = 1) => { // Added page parameter wi
     const separator = endpoint.includes('?') ? '&' : '?';
     const url = `${BASE_URL}${endpoint}${separator}api_key=${API_KEY}&page=${page}`; // Append page to the URL
 
+    const headers = {
+      'Content-Type': 'application/json;charset=utf-8',
+      'Accept': 'application/json'
+    };
+    if (ACCESS_TOKEN) {
+      headers['Authorization'] = `Bearer ${ACCESS_TOKEN}`;
+    }
+
     // Use mobile-optimized API handler
     const data = await mobileApiHandler.call(url, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${ACCESS_TOKEN}`,
-        'Content-Type': 'application/json;charset=utf-8',
-        'Accept': 'application/json'
-      }
+      headers: headers
     });
 
     return data;
   } catch (error) {
-    // Enhanced fallback for mobile devices
-    const device = detectDevice();
-    if (device.isMobile) {
-      // Determine content type and return appropriate mock data
-      if (endpoint.includes('/movie/') || endpoint.includes('/trending/movie')) {
-        return {
-          results: generateMockMovieData(20),
-          total_results: 20,
-          total_pages: 1,
-          page: 1,
-          isMockData: true,
-          fallbackReason: 'Mobile API failure'
-        };
-      } else if (endpoint.includes('/tv/') || endpoint.includes('/trending/tv')) {
-        return {
-          results: generateMockTVData(20),
-          total_results: 20,
-          total_pages: 1,
-          page: 1,
-          isMockData: true,
-          fallbackReason: 'Mobile API failure'
-        };
+    console.warn(`TMDB API call failed for ${endpoint}:`, error.message);
+    
+    // 1. TV Season Details: /tv/{id}/season/{num}
+    if (/^\/tv\/\d+\/season\/\d+/.test(endpoint)) {
+      const parts = endpoint.split('/');
+      const tvId = parseInt(parts[2]);
+      const seasonNumber = parseInt(parts[4]);
+      const episodes = [];
+      for (let i = 1; i <= 10; i++) {
+        episodes.push({
+          id: tvId * 1000 + seasonNumber * 100 + i,
+          episode_number: i,
+          name: `Episode ${i}: Neural Nexus`,
+          overview: `An exciting episode ${i} of season ${seasonNumber}. The digital matrix expands as the core system runs into critical state.`,
+          still_path: null,
+          air_date: `2024-04-${i < 10 ? '0' + i : i}`,
+          runtime: 45,
+          vote_average: 7.5 + (i % 3) * 0.5
+        });
       }
+      return {
+        id: tvId * 100 + seasonNumber,
+        season_number: seasonNumber,
+        episodes: episodes
+      };
+    }
+    
+    // 2. TV Show Details: /tv/{id}
+    if (/^\/tv\/\d+$/.test(endpoint)) {
+      const tvId = parseInt(endpoint.split('/')[2]);
+      const mockTV = generateMockTVData(20).find(t => t.id === tvId) || generateMockTVData(1)[0];
+      return {
+        ...mockTV,
+        genres: [{ id: 18, name: 'Drama' }, { id: 10765, name: 'Sci-Fi' }],
+        seasons: Array.from({ length: mockTV.number_of_seasons || 3 }, (_, i) => ({
+          id: tvId * 10 + i + 1,
+          season_number: i + 1,
+          episode_count: 10,
+          name: `Season ${i + 1}`
+        })),
+        status: 'Returning Series',
+        networks: [{ id: 1, name: 'NEXUS NET' }],
+        external_ids: { imdb_id: 'tt1234567' }
+      };
+    }
+    
+    // 3. Movie Details: /movie/{id}
+    if (/^\/movie\/\d+$/.test(endpoint)) {
+      const movieId = parseInt(endpoint.split('/')[2]);
+      const mockMovie = generateMockMovieData(20).find(m => m.id === movieId) || generateMockMovieData(1)[0];
+      return {
+        ...mockMovie,
+        genres: [{ id: 28, name: 'Action' }, { id: 878, name: 'Sci-Fi' }],
+        budget: 150000000,
+        revenue: 450000000,
+        status: 'Released',
+        production_companies: [{ id: 1, name: 'NEXUS Studios' }],
+        spoken_languages: [{ english_name: 'English' }],
+        tagline: 'Stream beyond reality.'
+      };
+    }
+    
+    // 4. Movie / TV Videos: /movie/{id}/videos or /tv/{id}/videos
+    if (/\/videos$/.test(endpoint)) {
+      return {
+        results: [
+          {
+            id: 'mock_trailer',
+            key: 'dQw4w9WgXcQ', // Rickroll as a fun mock trailer key
+            name: 'Official Trailer',
+            site: 'YouTube',
+            type: 'Trailer'
+          }
+        ]
+      };
+    }
+    
+    // 5. Movie / TV Credits: /movie/{id}/credits or /tv/{id}/credits
+    if (/\/credits$/.test(endpoint)) {
+      return {
+        cast: [
+          { id: 101, name: 'Neo', character: 'The One', profile_path: null },
+          { id: 102, name: 'Trinity', character: 'Officer', profile_path: null },
+          { id: 103, name: 'Morpheus', character: 'Leader', profile_path: null }
+        ],
+        crew: [
+          { id: 201, name: 'Wachowskis', job: 'Director' }
+        ]
+      };
+    }
+    
+    // 6. Movie / TV Recommendations: /movie/{id}/recommendations or /tv/{id}/recommendations
+    if (/\/recommendations$/.test(endpoint)) {
+      const isTV = endpoint.includes('/tv/');
+      return {
+        results: isTV ? generateMockTVData(6) : generateMockMovieData(6),
+        total_results: 6,
+        total_pages: 1,
+        page: 1
+      };
+    }
+    
+    // 7. General Movie List requests
+    if (endpoint.includes('movie')) {
+      return {
+        results: generateMockMovieData(20),
+        total_results: 20,
+        total_pages: 1,
+        page: 1,
+        isMockData: true,
+        fallbackReason: 'API failure'
+      };
+    }
+    
+    // 8. General TV List requests
+    if (endpoint.includes('tv')) {
+      return {
+        results: generateMockTVData(20),
+        total_results: 20,
+        total_pages: 1,
+        page: 1,
+        isMockData: true,
+        fallbackReason: 'API failure'
+      };
     }
 
-    // Standard fallback for desktop or unknown content
+    // Default fallback
     return {
       results: [],
       total_results: 0,
+      total_pages: 1,
+      page: 1,
       error: error.message,
       isFallback: true
     };
