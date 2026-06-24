@@ -52,6 +52,21 @@ const Login = () => {
       return; // Stop if validation fails
     }
 
+    // Support demo mode when Firebase is not configured
+    if (auth._isDemo) {
+      setTimeout(() => {
+        dispatch(addUser({
+          uid: 'demo-user-123',
+          email: email,
+          displayName: !isSignInForm && name ? name : 'Guest User',
+        }));
+        setErrorMessage(null);
+        setIsLoading(false);
+        navigate(from, { replace: true });
+      }, 800);
+      return;
+    }
+
     // Sign in and sign up logic
     if (!isSignInForm) {
       // Sign up logic
