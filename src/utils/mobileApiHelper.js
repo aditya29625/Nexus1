@@ -63,6 +63,12 @@ export const mobileOptimizedFetch = async (url, options = {}) => {
       }
       
       const data = await response.json();
+      
+      // Handle TMDB API errors that return HTTP 200
+      if (data && data.success === false) {
+        throw new Error(data.status_message || 'TMDB API Error');
+      }
+      
       return data;
       
     } catch (error) {
@@ -93,8 +99,8 @@ export const generateMockMovieData = (count = 20) => {
       id: 900000 + i, // Use high IDs to avoid conflicts
       title: titles[i % titles.length] + (i > titles.length ? ` ${Math.ceil(i / titles.length)}` : ''),
       overview: `A thrilling ${genres[i % genres.length].toLowerCase()} experience that will keep you on the edge of your seat. This high-quality entertainment delivers exceptional storytelling and unforgettable characters.`,
-      poster_path: `/placeholder-poster-${(i % 5) + 1}.jpg`,
-      backdrop_path: `/placeholder-backdrop-${(i % 3) + 1}.jpg`,
+      poster_path: `https://picsum.photos/seed/movie${i}/400/600`,
+      backdrop_path: `https://picsum.photos/seed/backdrop${i}/1280/720`,
       release_date: new Date(2020 + (i % 4), i % 12, (i % 28) + 1).toISOString().split('T')[0],
       vote_average: 7.0 + (i % 3),
       vote_count: 1000 + (i * 100),
@@ -196,26 +202,6 @@ export const mobileApiHandler = {
       
       return data;
     } catch (error) {
-      // Return mock data as fallback for all devices when API fails
-      if (url.includes('/movie/') || url.includes('/trending/movie') || url.includes('/movie')) {
-        return {
-          results: generateMockMovieData(20),
-          total_results: 20,
-          total_pages: 1,
-          page: 1,
-          isMockData: true
-        };
-      }
-      if (url.includes('/tv/') || url.includes('/trending/tv') || url.includes('/tv')) {
-        return {
-          results: generateMockTVData(20),
-          total_results: 20,
-          total_pages: 1,
-          page: 1,
-          isMockData: true
-        };
-      }
-      
       throw error;
     }
   }
@@ -237,8 +223,8 @@ export const generateMockTVData = (count = 20) => {
       id: 800000 + i, // Use high IDs to avoid conflicts
       name: titles[i % titles.length] + (i > titles.length ? ` ${Math.ceil(i / titles.length)}` : ''),
       overview: `An engaging ${genres[i % genres.length].toLowerCase()} series that captivates audiences with compelling storylines and memorable characters across multiple seasons.`,
-      poster_path: `/placeholder-tv-poster-${(i % 5) + 1}.jpg`,
-      backdrop_path: `/placeholder-tv-backdrop-${(i % 3) + 1}.jpg`,
+      poster_path: `https://picsum.photos/seed/tv${i}/400/600`,
+      backdrop_path: `https://picsum.photos/seed/tvbg${i}/1280/720`,
       first_air_date: new Date(2018 + (i % 6), i % 12, (i % 28) + 1).toISOString().split('T')[0],
       vote_average: 7.5 + (i % 3) * 0.5,
       vote_count: 800 + (i * 75),
